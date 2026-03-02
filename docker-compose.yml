@@ -1,0 +1,266 @@
+# docker-compose.yml
+# Manages a 9-node cluster:
+#   - 3 partitions  (p0, p1, p2)
+#   - 3 replicas per partition  (r0, r1, r2)
+# Each node runs in its own container with a dedicated data volume.
+
+services:
+
+  # ─── Partition 0 ────────────────────────────────────────────────────────────
+
+  node-p0-r0:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: node-p0-r0
+    environment:
+      NODE_ID: "0"
+      PARTITION_ID: "0"
+      PARTITION_COUNT: "3"
+      REPLICA_COUNT: "3"
+      SELF_ADDR: "node-p0-r0:7000"
+      PEERS: "node-p0-r1:7000,node-p0-r2:7000"
+      DATA_DIR: "/data"
+      RPC_PORT: "7000"
+      SNAPSHOT_THRESHOLD: "1000"
+      ELECTION_TIMEOUT_MIN_MS: "150"
+      ELECTION_TIMEOUT_MAX_MS: "300"
+      HEARTBEAT_INTERVAL_MS: "50"
+    ports:
+      - "7000:7000"
+    volumes:
+      - node-p0-r0-data:/data
+    networks:
+      - db-net
+    restart: on-failure
+
+  node-p0-r1:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: node-p0-r1
+    environment:
+      NODE_ID: "1"
+      PARTITION_ID: "0"
+      PARTITION_COUNT: "3"
+      REPLICA_COUNT: "3"
+      SELF_ADDR: "node-p0-r1:7000"
+      PEERS: "node-p0-r0:7000,node-p0-r2:7000"
+      DATA_DIR: "/data"
+      RPC_PORT: "7000"
+      SNAPSHOT_THRESHOLD: "1000"
+      ELECTION_TIMEOUT_MIN_MS: "150"
+      ELECTION_TIMEOUT_MAX_MS: "300"
+      HEARTBEAT_INTERVAL_MS: "50"
+    ports:
+      - "7001:7000"
+    volumes:
+      - node-p0-r1-data:/data
+    networks:
+      - db-net
+    restart: on-failure
+
+  node-p0-r2:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: node-p0-r2
+    environment:
+      NODE_ID: "2"
+      PARTITION_ID: "0"
+      PARTITION_COUNT: "3"
+      REPLICA_COUNT: "3"
+      SELF_ADDR: "node-p0-r2:7000"
+      PEERS: "node-p0-r0:7000,node-p0-r1:7000"
+      DATA_DIR: "/data"
+      RPC_PORT: "7000"
+      SNAPSHOT_THRESHOLD: "1000"
+      ELECTION_TIMEOUT_MIN_MS: "150"
+      ELECTION_TIMEOUT_MAX_MS: "300"
+      HEARTBEAT_INTERVAL_MS: "50"
+    ports:
+      - "7002:7000"
+    volumes:
+      - node-p0-r2-data:/data
+    networks:
+      - db-net
+    restart: on-failure
+
+  # ─── Partition 1 ────────────────────────────────────────────────────────────
+
+  node-p1-r0:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: node-p1-r0
+    environment:
+      NODE_ID: "3"
+      PARTITION_ID: "1"
+      PARTITION_COUNT: "3"
+      REPLICA_COUNT: "3"
+      SELF_ADDR: "node-p1-r0:7000"
+      PEERS: "node-p1-r1:7000,node-p1-r2:7000"
+      DATA_DIR: "/data"
+      RPC_PORT: "7000"
+      SNAPSHOT_THRESHOLD: "1000"
+      ELECTION_TIMEOUT_MIN_MS: "150"
+      ELECTION_TIMEOUT_MAX_MS: "300"
+      HEARTBEAT_INTERVAL_MS: "50"
+    ports:
+      - "7010:7000"
+    volumes:
+      - node-p1-r0-data:/data
+    networks:
+      - db-net
+    restart: on-failure
+
+  node-p1-r1:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: node-p1-r1
+    environment:
+      NODE_ID: "4"
+      PARTITION_ID: "1"
+      PARTITION_COUNT: "3"
+      REPLICA_COUNT: "3"
+      SELF_ADDR: "node-p1-r1:7000"
+      PEERS: "node-p1-r0:7000,node-p1-r2:7000"
+      DATA_DIR: "/data"
+      RPC_PORT: "7000"
+      SNAPSHOT_THRESHOLD: "1000"
+      ELECTION_TIMEOUT_MIN_MS: "150"
+      ELECTION_TIMEOUT_MAX_MS: "300"
+      HEARTBEAT_INTERVAL_MS: "50"
+    ports:
+      - "7011:7000"
+    volumes:
+      - node-p1-r1-data:/data
+    networks:
+      - db-net
+    restart: on-failure
+
+  node-p1-r2:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: node-p1-r2
+    environment:
+      NODE_ID: "5"
+      PARTITION_ID: "1"
+      PARTITION_COUNT: "3"
+      REPLICA_COUNT: "3"
+      SELF_ADDR: "node-p1-r2:7000"
+      PEERS: "node-p1-r0:7000,node-p1-r1:7000"
+      DATA_DIR: "/data"
+      RPC_PORT: "7000"
+      SNAPSHOT_THRESHOLD: "1000"
+      ELECTION_TIMEOUT_MIN_MS: "150"
+      ELECTION_TIMEOUT_MAX_MS: "300"
+      HEARTBEAT_INTERVAL_MS: "50"
+    ports:
+      - "7012:7000"
+    volumes:
+      - node-p1-r2-data:/data
+    networks:
+      - db-net
+    restart: on-failure
+
+  # ─── Partition 2 ────────────────────────────────────────────────────────────
+
+  node-p2-r0:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: node-p2-r0
+    environment:
+      NODE_ID: "6"
+      PARTITION_ID: "2"
+      PARTITION_COUNT: "3"
+      REPLICA_COUNT: "3"
+      SELF_ADDR: "node-p2-r0:7000"
+      PEERS: "node-p2-r1:7000,node-p2-r2:7000"
+      DATA_DIR: "/data"
+      RPC_PORT: "7000"
+      SNAPSHOT_THRESHOLD: "1000"
+      ELECTION_TIMEOUT_MIN_MS: "150"
+      ELECTION_TIMEOUT_MAX_MS: "300"
+      HEARTBEAT_INTERVAL_MS: "50"
+    ports:
+      - "7020:7000"
+    volumes:
+      - node-p2-r0-data:/data
+    networks:
+      - db-net
+    restart: on-failure
+
+  node-p2-r1:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: node-p2-r1
+    environment:
+      NODE_ID: "7"
+      PARTITION_ID: "2"
+      PARTITION_COUNT: "3"
+      REPLICA_COUNT: "3"
+      SELF_ADDR: "node-p2-r1:7000"
+      PEERS: "node-p2-r0:7000,node-p2-r2:7000"
+      DATA_DIR: "/data"
+      RPC_PORT: "7000"
+      SNAPSHOT_THRESHOLD: "1000"
+      ELECTION_TIMEOUT_MIN_MS: "150"
+      ELECTION_TIMEOUT_MAX_MS: "300"
+      HEARTBEAT_INTERVAL_MS: "50"
+    ports:
+      - "7021:7000"
+    volumes:
+      - node-p2-r1-data:/data
+    networks:
+      - db-net
+    restart: on-failure
+
+  node-p2-r2:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: node-p2-r2
+    environment:
+      NODE_ID: "8"
+      PARTITION_ID: "2"
+      PARTITION_COUNT: "3"
+      REPLICA_COUNT: "3"
+      SELF_ADDR: "node-p2-r2:7000"
+      PEERS: "node-p2-r0:7000,node-p2-r1:7000"
+      DATA_DIR: "/data"
+      RPC_PORT: "7000"
+      SNAPSHOT_THRESHOLD: "1000"
+      ELECTION_TIMEOUT_MIN_MS: "150"
+      ELECTION_TIMEOUT_MAX_MS: "300"
+      HEARTBEAT_INTERVAL_MS: "50"
+    ports:
+      - "7022:7000"
+    volumes:
+      - node-p2-r2-data:/data
+    networks:
+      - db-net
+    restart: on-failure
+
+# ─── Volumes ──────────────────────────────────────────────────────────────────
+
+volumes:
+  node-p0-r0-data:
+  node-p0-r1-data:
+  node-p0-r2-data:
+  node-p1-r0-data:
+  node-p1-r1-data:
+  node-p1-r2-data:
+  node-p2-r0-data:
+  node-p2-r1-data:
+  node-p2-r2-data:
+
+# ─── Networks ─────────────────────────────────────────────────────────────────
+
+networks:
+  db-net:
+    driver: bridge
