@@ -1,4 +1,4 @@
-// Package partition implements partition identification and key-to-partition
+// Implements partition identification and key-to-partition
 // routing for the distributed key-value database.
 //
 // The cluster is divided into PartitionCount (=3) independent shards.

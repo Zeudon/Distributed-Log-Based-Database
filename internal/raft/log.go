@@ -2,8 +2,6 @@ package raft
 
 import "github.com/Zeudon/Distributed-Log-Based-Database/proto"
 
-// ─── log helpers (all require r.mu to be held by caller) ──────────────────
-
 // lastLogIndex returns the index of the last entry in the log.
 // Returns r.snapshotIndex if the log is empty (i.e. everyt entry is
 // captured in the installed snapshot).

@@ -13,9 +13,9 @@ import (
 // PartitionInfo describes a single partition's replica set and current known
 // leader address.
 type PartitionInfo struct {
-	ID              int
+	ID               int
 	ReplicaAddresses []string // all replica addresses (including current leader)
-	LeaderAddr      string   // last known leader address; empty = unknown
+	LeaderAddr       string   // last known leader address; empty = unknown
 }
 
 // Router routes client requests to the correct partition and leader.
@@ -157,8 +157,6 @@ func (rt *Router) Delete(key string) error {
 func (rt *Router) UpdateLeader(partitionID int, leaderAddr string) {
 	rt.updateLeader(partitionID, leaderAddr)
 }
-
-// ─── internal helpers ──────────────────────────────────────────────────────
 
 // leaderAddr returns the known leader address for the given partition,
 // falling back to any replica address if the leader is unknown.

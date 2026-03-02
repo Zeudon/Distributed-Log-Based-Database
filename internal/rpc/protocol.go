@@ -1,11 +1,8 @@
-// Package rpc implements a lightweight custom binary RPC framework over TCP.
-//
+// Implements a lightweight custom binary RPC framework over TCP.
 // Wire frame format (per message):
+// Payload length = 4 bytes
+// Message type = 1 byte
+// Payload = N bytes (gob-encoded struct, varies by message type)
 //
-//	┌──────────────────┬────────────────┬──────────────────────────┐
-//	│ 4 bytes (uint32) │  1 byte (uint8)│  N bytes                 │
-//	│  payload length  │  message type  │  gob-encoded payload     │
-//	└──────────────────┴────────────────┴──────────────────────────┘
-//
-// The length field encodes the size of the payload only (not the header).
+// The length field encodes the size of the payload only.
 package rpc

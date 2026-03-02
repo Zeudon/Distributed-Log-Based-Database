@@ -138,10 +138,6 @@ func (n *Node) Start() error {
 	return n.rpcSrv.Listen()
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// RPC handler registration
-// ─────────────────────────────────────────────────────────────────────────────
-
 func (n *Node) registerHandlers() {
 	// Client → node
 	n.rpcSrv.RegisterHandler(proto.MsgGet, n.handleGet)
@@ -153,10 +149,6 @@ func (n *Node) registerHandlers() {
 	n.rpcSrv.RegisterHandler(proto.MsgAppendEntries, n.handleAppendEntries)
 	n.rpcSrv.RegisterHandler(proto.MsgInstallSnapshot, n.handleInstallSnapshot)
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Client RPC handlers
-// ─────────────────────────────────────────────────────────────────────────────
 
 func (n *Node) handleGet(_ uint8, payload []byte) (uint8, any, error) {
 	var req proto.GetRequest
@@ -211,10 +203,6 @@ func (n *Node) handleDelete(_ uint8, payload []byte) (uint8, any, error) {
 	return proto.MsgDeleteResponse, proto.DeleteResponse{Success: true}, nil
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Raft RPC handlers
-// ─────────────────────────────────────────────────────────────────────────────
-
 func (n *Node) handleRequestVote(_ uint8, payload []byte) (uint8, any, error) {
 	var args proto.RequestVoteArgs
 	if err := rpc.DecodePayload(payload, &args); err != nil {
@@ -244,10 +232,6 @@ func (n *Node) handleInstallSnapshot(_ uint8, payload []byte) (uint8, any, error
 	n.raftNode.HandleInstallSnapshot(args, &reply)
 	return proto.MsgInstallSnapshotReply, reply, nil
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Apply loop
-// ─────────────────────────────────────────────────────────────────────────────
 
 // runApplyLoop drains ApplyMsgs from Raft and applies them to the MemTable.
 func (n *Node) runApplyLoop() {
@@ -291,10 +275,6 @@ func (n *Node) runApplyLoop() {
 		n.pendingMu.Unlock()
 	}
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Write helpers
-// ─────────────────────────────────────────────────────────────────────────────
 
 // waitForCommit blocks until the entry at idx is applied, or until a 5-second
 // timeout. It handles the race where the entry is applied before the channel
@@ -348,10 +328,6 @@ func errResp(msg string, code proto.ErrorCode, leaderAddr string) proto.ErrorRes
 	}
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Public write helpers (used by httpapi via NodeAccessor)
-// ─────────────────────────────────────────────────────────────────────────────
-
 // SubmitSet submits a CmdSet command to Raft and blocks until it is committed.
 func (n *Node) SubmitSet(key, value string) error {
 	if !n.raftNode.IsLeader() {
@@ -377,10 +353,6 @@ func (n *Node) SubmitDelete(key string) error {
 	}
 	return n.waitForCommit(idx, term)
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// NodeAccessor interface implementation (used by httpapi.Server)
-// ─────────────────────────────────────────────────────────────────────────────
 
 // MemGet reads a key directly from the in-memory state (stale-read semantics).
 func (n *Node) MemGet(key string) (string, bool) { return n.mem.Get(key) }

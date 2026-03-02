@@ -1,4 +1,4 @@
-// Package httpapi provides a REST HTTP API layer for each database node.
+// Provides a REST HTTP API layer for each database node.
 // It sits alongside the existing binary RPC server and exposes the same
 // operations (plus Raft metadata) over JSON/HTTP.
 package httpapi
@@ -12,10 +12,6 @@ import (
 	"strconv"
 	"time"
 )
-
-// ─────────────────────────────────────────────────────────────────────────────
-// NodeAccessor interface
-// ─────────────────────────────────────────────────────────────────────────────
 
 // NodeAccessor is the narrow interface that the HTTP layer requires from node.Node.
 // Using an interface keeps httpapi decoupled from the concrete node type and
@@ -52,10 +48,6 @@ type NodeAccessor interface {
 	SnapshotExists() bool
 	MemTableLen() int
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Server
-// ─────────────────────────────────────────────────────────────────────────────
 
 // Server is the HTTP server that wraps a NodeAccessor.
 type Server struct {
@@ -97,10 +89,6 @@ func (s *Server) Close() error {
 	defer cancel()
 	return s.srv.Shutdown(ctx)
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared JSON response types
-// ─────────────────────────────────────────────────────────────────────────────
 
 type raftInfo struct {
 	Term        uint64 `json:"term"`
@@ -175,10 +163,6 @@ func optionalTime(t time.Time) *string {
 	return &s
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /v1/keys — insert a new key (409 if already exists)
-// ─────────────────────────────────────────────────────────────────────────────
-
 func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	partID := s.accessor.PartitionID()
@@ -229,10 +213,6 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PUT /v1/keys/{key} — update an existing key (404 if not found)
-// ─────────────────────────────────────────────────────────────────────────────
-
 func (s *Server) handleUpdate(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	key := r.PathValue("key")
@@ -282,10 +262,6 @@ func (s *Server) handleUpdate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /v1/keys/{key} — retrieve a single key
-// ─────────────────────────────────────────────────────────────────────────────
-
 func (s *Server) handleGetOne(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	key := r.PathValue("key")
@@ -312,10 +288,6 @@ func (s *Server) handleGetOne(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /v1/keys — retrieve all key-value pairs on this partition
-// ─────────────────────────────────────────────────────────────────────────────
-
 type kvPair struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
@@ -333,10 +305,6 @@ func (s *Server) handleGetAll(w http.ResponseWriter, r *http.Request) {
 		"keys":         pairs,
 	})
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /v1/health — node and Raft health
-// ─────────────────────────────────────────────────────────────────────────────
 
 type peerInfo struct {
 	Addr   string `json:"addr"`

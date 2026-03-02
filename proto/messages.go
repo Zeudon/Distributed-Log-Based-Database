@@ -2,10 +2,6 @@
 // Serialisation is done with encoding/gob — no external code generation required.
 package proto
 
-// ─────────────────────────────────────────────────────────────────────────────
-// RPC message type constants
-// ─────────────────────────────────────────────────────────────────────────────
-
 const (
 	// Client → node messages
 	MsgGet    uint8 = 0x01
@@ -13,11 +9,11 @@ const (
 	MsgDelete uint8 = 0x03
 
 	// Node → node Raft messages
-	MsgRequestVote      uint8 = 0x10
-	MsgRequestVoteReply uint8 = 0x11
-	MsgAppendEntries    uint8 = 0x12
-	MsgAppendEntriesReply uint8 = 0x13
-	MsgInstallSnapshot  uint8 = 0x14
+	MsgRequestVote          uint8 = 0x10
+	MsgRequestVoteReply     uint8 = 0x11
+	MsgAppendEntries        uint8 = 0x12
+	MsgAppendEntriesReply   uint8 = 0x13
+	MsgInstallSnapshot      uint8 = 0x14
 	MsgInstallSnapshotReply uint8 = 0x15
 
 	// Response / error messages
@@ -26,10 +22,6 @@ const (
 	MsgDeleteResponse uint8 = 0x22
 	MsgError          uint8 = 0x2F
 )
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Log entry (shared by storage and Raft)
-// ─────────────────────────────────────────────────────────────────────────────
 
 // LogEntry is a single entry in the Raft log.
 // Command holds a gob-encoded SetRequest or DeleteRequest.
@@ -53,10 +45,6 @@ type Command struct {
 	Key   string
 	Value string // empty for CmdDelete
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Client RPC request / response messages
-// ─────────────────────────────────────────────────────────────────────────────
 
 // GetRequest is sent by the client to retrieve a value by key.
 type GetRequest struct {
@@ -103,16 +91,12 @@ type ErrorResponse struct {
 type ErrorCode uint8
 
 const (
-	ErrUnknown    ErrorCode = 0
-	ErrNotLeader  ErrorCode = 1
+	ErrUnknown     ErrorCode = 0
+	ErrNotLeader   ErrorCode = 1
 	ErrKeyNotFound ErrorCode = 2
-	ErrInternal   ErrorCode = 3
-	ErrTimeout    ErrorCode = 4
+	ErrInternal    ErrorCode = 3
+	ErrTimeout     ErrorCode = 4
 )
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Raft RPC messages
-// ─────────────────────────────────────────────────────────────────────────────
 
 // RequestVoteArgs is sent by a Candidate to solicit votes from peers.
 type RequestVoteArgs struct {
@@ -141,8 +125,8 @@ type AppendEntriesArgs struct {
 
 // AppendEntriesReply is the response to an AppendEntries RPC.
 type AppendEntriesReply struct {
-	Term          uint64 // responder's current term (so leader updates itself)
-	Success       bool
+	Term    uint64 // responder's current term (so leader updates itself)
+	Success bool
 	// ConflictIndex and ConflictTerm allow the leader to quickly back up.
 	ConflictIndex uint64
 	ConflictTerm  uint64
@@ -162,10 +146,6 @@ type InstallSnapshotArgs struct {
 type InstallSnapshotReply struct {
 	Term uint64 // responder's current term
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Snapshot (used internally by storage and Raft)
-// ─────────────────────────────────────────────────────────────────────────────
 
 // Snapshot captures the full state machine state at a given log position.
 type Snapshot struct {

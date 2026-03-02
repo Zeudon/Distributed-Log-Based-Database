@@ -1,4 +1,4 @@
-// Package gateway implements a stateless REST API gateway that routes
+// Implements a stateless REST API gateway that routes
 // single-key operations to the correct partition and fans out aggregate
 // queries across all partitions concurrently.
 package gateway
@@ -16,22 +16,12 @@ import (
 	"time"
 )
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Configuration
-// ─────────────────────────────────────────────────────────────────────────────
-
 // PartitionConfig describes one partition's set of HTTP replica addresses.
 type PartitionConfig struct {
 	ID        int
 	HTTPAddrs []string // one per replica, e.g. ["node-p0-r0:8080", ...]
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Gateway
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Gateway is a stateless HTTP proxy that routes to the correct partition and
-// aggregates responses from multiple partitions for fan-out endpoints.
 type Gateway struct {
 	partitions []PartitionConfig
 	leaderMu   sync.RWMutex
@@ -49,7 +39,6 @@ func New(partitions []PartitionConfig, port int) *Gateway {
 		leaderAddr: make(map[int]string),
 		httpCli: &http.Client{
 			Timeout: 10 * time.Second,
-			// Do not follow redirects automatically — we handle 307 ourselves.
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				return http.ErrUseLastResponse
 			},
@@ -89,10 +78,6 @@ func (g *Gateway) Close() error {
 	return g.srv.Shutdown(ctx)
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Partition routing helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
 // partitionIDForKey computes the partition for a key using FNV-1a hash.
 func (g *Gateway) partitionIDForKey(key string) int {
 	var h uint32 = 2166136261
@@ -127,10 +112,6 @@ func (g *Gateway) updateLeader(partID int, addr string) {
 	g.leaderAddr[partID] = addr
 	g.leaderMu.Unlock()
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Proxying helpers
-// ─────────────────────────────────────────────────────────────────────────────
 
 // proxyWrite forwards a write request (POST/PUT) to the correct partition
 // leader, following up to 3 leader redirects transparently.
@@ -202,10 +183,6 @@ func (g *Gateway) proxyRead(w http.ResponseWriter, r *http.Request, partID int) 
 	copyResponse(w, resp)
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Route handlers
-// ─────────────────────────────────────────────────────────────────────────────
-
 // handleCreate proxies POST /v1/keys to the correct partition leader.
 func (g *Gateway) handleCreate(w http.ResponseWriter, r *http.Request) {
 	// Peek at the key in the body to route it.
@@ -238,10 +215,6 @@ func (g *Gateway) handleGetOne(w http.ResponseWriter, r *http.Request) {
 	partID := g.partitionIDForKey(key)
 	g.proxyRead(w, r, partID)
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Fan-out: GET /v1/keys — all partitions
-// ─────────────────────────────────────────────────────────────────────────────
 
 type partitionKeysResult struct {
 	PartitionID int     `json:"partition_id"`
@@ -328,10 +301,6 @@ func (g *Gateway) handleGetAll(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, statusCode, resp)
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Fan-out: GET /v1/health — all 9 nodes
-// ─────────────────────────────────────────────────────────────────────────────
-
 type replicaHealthRow struct {
 	NodeID      int    `json:"node_id"`
 	Addr        string `json:"addr"`
@@ -349,8 +318,7 @@ type partitionHealthResult struct {
 	Replicas    []replicaHealthRow `json:"replicas"`
 }
 
-// nodeHealthSummary is a subset of the per-node /v1/health response we
-// care about for aggregation.
+// nodeHealthSummary is a subset of the per-node /v1/health response needed for aggregation.
 type nodeHealthSummary struct {
 	NodeID int    `json:"node_id"`
 	Role   string `json:"role"`
@@ -453,10 +421,6 @@ func (g *Gateway) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"partitions":  partitions,
 	})
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")

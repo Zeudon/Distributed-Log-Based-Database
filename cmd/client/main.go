@@ -8,12 +8,7 @@
 //
 // The client resolves the correct partition using FNV-1a hashing and contacts
 // the matching partition's replicas starting with the last known leader.
-//
-// Environment variables:
-//
-//	PARTITION_COUNT  — number of partitions (default 3)
-//	PARTITION_<N>_ADDRS — comma-separated replica addresses for partition N
-//	                      e.g. PARTITION_0_ADDRS=node-p0-r0:7000,node-p0-r1:7000,node-p0-r2:7000
+
 package main
 
 import (

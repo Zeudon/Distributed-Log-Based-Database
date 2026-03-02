@@ -1,7 +1,5 @@
-// Package raft implements the Raft consensus algorithm from scratch.
-//
-// Reference: Ongaro & Ousterhout, "In Search of an Understandable Consensus
-// Algorithm", USENIX ATC 2014.
+// Implements the Raft consensus algorithm from scratch.
+
 package raft
 
 import (
@@ -34,12 +32,12 @@ type RaftNode struct {
 	mu  sync.Mutex
 	cfg config.ClusterConfig
 
-	// Persistent state (saved to disk on every mutation)
+	// Persistent state
 	currentTerm uint64
 	votedFor    int // -1 = none
 	log         []proto.LogEntry
 
-	// Volatile state (all nodes)
+	// Volatile state
 	commitIndex uint64
 	lastApplied uint64
 	role        RaftRole
@@ -49,7 +47,7 @@ type RaftNode struct {
 	nextIndex  []uint64 // for each peer: next log index to send
 	matchIndex []uint64 // for each peer: highest known replicated index
 
-	// Snapshot metadata (used when some log entries are compacted away)
+	// Snapshot metadata
 	snapshotIndex uint64
 	snapshotTerm  uint64
 
@@ -115,10 +113,6 @@ func NewRaftNode(
 
 	return r
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Public API
-// ─────────────────────────────────────────────────────────────────────────────
 
 // Start launches the Raft background goroutines.
 func (r *RaftNode) Start() {
@@ -197,10 +191,6 @@ func (r *RaftNode) LeaderAddr() string {
 	// addresses in PeerAddresses, so we use a small helper.
 	return r.peerAddr(r.leaderID)
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// RPC Handlers (called by the node's RPC server)
-// ─────────────────────────────────────────────────────────────────────────────
 
 // HandleRequestVote processes an incoming RequestVote RPC.
 func (r *RaftNode) HandleRequestVote(args proto.RequestVoteArgs, reply *proto.RequestVoteReply) {
@@ -367,10 +357,6 @@ func (r *RaftNode) HandleInstallSnapshot(args proto.InstallSnapshotArgs, reply *
 	}
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Election
-// ─────────────────────────────────────────────────────────────────────────────
-
 // runElectionTimer runs continuously. When no heartbeat is received within the
 // election timeout window, it starts a new election.
 func (r *RaftNode) runElectionTimer() {
@@ -483,10 +469,6 @@ func (r *RaftNode) becomeFollowerLocked(term uint64) {
 	r.votedFor = -1
 	r.persistLocked()
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Replication (Leader)
-// ─────────────────────────────────────────────────────────────────────────────
 
 // sendHeartbeats is the leader heartbeat loop. It runs until this node is no
 // longer the leader. It sends AppendEntries (with or without entries) to all
@@ -672,10 +654,6 @@ func (r *RaftNode) advanceCommitIndexLocked() {
 	}
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Apply loop
-// ─────────────────────────────────────────────────────────────────────────────
-
 // applyCommitted drains committed log entries and sends them on applyCh.
 func (r *RaftNode) applyCommitted() {
 	for range r.commitCh {
@@ -710,10 +688,6 @@ func (r *RaftNode) applyCommitted() {
 		}
 	}
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Snapshot trigger
-// ─────────────────────────────────────────────────────────────────────────────
 
 // maybeSnapshotLoop watches for triggers and takes a snapshot + compacts the
 // WAL when the in-memory log exceeds SnapshotThreshold.
@@ -806,10 +780,6 @@ func (r *RaftNode) SnapshotIndex() uint64 {
 	defer r.mu.Unlock()
 	return r.snapshotIndex
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Internal helpers
-// ─────────────────────────────────────────────────────────────────────────────
 
 // persistLocked writes term, votedFor, and log to disk. Caller must hold r.mu.
 func (r *RaftNode) persistLocked() {

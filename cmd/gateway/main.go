@@ -1,14 +1,8 @@
-// cmd/gateway is the entry point for the API gateway binary.
+// Entry point for the API gateway binary.
 // It reads partition HTTP addresses from environment variables and starts
 // a stateless REST gateway that routes requests to the correct partition
 // or fans out to all partitions for aggregate queries.
-//
-// Required environment variables:
-//
-//	PARTITION_COUNT            — number of partitions (default: 3)
-//	PARTITION_<N>_HTTP_ADDRS  — comma-separated HTTP addresses for partition N
-//	                             e.g. PARTITION_0_HTTP_ADDRS=node-p0-r0:8080,...
-//	GATEWAY_PORT               — port the gateway listens on (default: 9090)
+
 package main
 
 import (
