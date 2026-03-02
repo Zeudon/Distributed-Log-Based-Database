@@ -91,10 +91,6 @@ Restart it to observe log catch-up and re-integration:
 docker compose start node-p0-r0
 ```
 
----
-
-
----
 
 ## License
 
