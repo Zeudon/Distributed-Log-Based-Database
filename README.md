@@ -13,19 +13,6 @@ A distributed, partitioned key-value store written in Go. The system uses the Ra
 - Snapshots are taken periodically and the WAL is compacted to prevent unbounded growth
 - Each node runs in its own Docker container, orchestrated with Docker Compose
 
-```
-Clients
-   │
-   ▼  (Custom RPC over TCP)
-┌────────────────────────────────────────────┐
-│              Router / Client               │  ← hash(key) % 3 → partition
-└──────────────┬─────────────────────────────┘
-               │
-    ┌──────────┼──────────┐
-    │          │          │
- Partition 0  Partition 1  Partition 2
- (3 replicas) (3 replicas) (3 replicas)
-```
 
 ---
 
@@ -74,6 +61,33 @@ The client automatically resolves the correct partition for each key and follows
 
 ---
 
+## REST API
+
+An API gateway (port `9090`) routes requests across all partitions. Individual nodes are also reachable on ports `8000–8022` (HTTP port `8080` inside each container).
+
+| Method | Path | Body | Description |
+|--------|------|------|-------------|
+| `POST` | `/v1/keys` | `{"key":"foo","value":"bar"}` | Create a key (fails if already exists) |
+| `PUT` | `/v1/keys/{key}` | `{"value":"bar"}` | Create or update a key |
+| `GET` | `/v1/keys/{key}` | — | Get a single value |
+| `GET` | `/v1/keys` | — | List all key-value pairs (fan-out across partitions) |
+| `GET` | `/v1/health` | — | Cluster health for all 9 nodes |
+
+Non-leader nodes return `307 Temporary Redirect` with an `X-Raft-Leader-Http-Addr` header; the gateway follows redirects automatically.
+
+**Examples:**
+```bash
+curl -X POST localhost:9090/v1/keys \
+     -H "Content-Type: application/json" \
+     -d '{"key":"foo","value":"bar"}'
+
+curl localhost:9090/v1/keys/foo
+curl localhost:9090/v1/keys
+curl localhost:9090/v1/health
+```
+
+---
+
 ## Failure Testing
 
 Stop a node and verify the remaining two replicas in its partition elect a new leader and continue serving requests:
@@ -91,6 +105,7 @@ Restart it to observe log catch-up and re-integration:
 docker compose start node-p0-r0
 ```
 
+---
 
 ## License
 
