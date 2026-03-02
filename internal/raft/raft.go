@@ -765,6 +765,48 @@ func (r *RaftNode) TriggerSnapshot() {
 	}
 }
 
+// Term returns the current Raft term.
+func (r *RaftNode) Term() uint64 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.currentTerm
+}
+
+// Role returns the current Raft role as a string ("Leader", "Follower", "Candidate").
+func (r *RaftNode) Role() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.role.String()
+}
+
+// CommitIndex returns the current commitIndex.
+func (r *RaftNode) CommitIndex() uint64 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.commitIndex
+}
+
+// LastApplied returns the index of the last applied log entry.
+func (r *RaftNode) LastApplied() uint64 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.lastApplied
+}
+
+// LastLogIndexPublic returns the index of the last entry in the log.
+func (r *RaftNode) LastLogIndexPublic() uint64 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.lastLogIndex()
+}
+
+// SnapshotIndex returns the index of the last included snapshot entry.
+func (r *RaftNode) SnapshotIndex() uint64 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.snapshotIndex
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -828,4 +870,3 @@ func (r *RaftNode) peerAddr(nodeID int) string {
 	}
 	return peers[idx]
 }
-

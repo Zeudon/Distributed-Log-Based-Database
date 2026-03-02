@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/Zeudon/Distributed-Log-Based-Database/proto"
 )
@@ -24,9 +25,10 @@ import (
 //	│  gob payload length   │  gob-encoded proto.LogEntry  │
 //	└───────────────────────┴──────────────────────────────┘
 type WAL struct {
-	mu   sync.Mutex
-	path string
-	file *os.File
+	mu             sync.Mutex
+	path           string
+	file           *os.File
+	lastAppendTime time.Time
 }
 
 // OpenWAL opens (or creates) the WAL file at <dataDir>/wal.log.
@@ -64,7 +66,19 @@ func (w *WAL) Append(entry proto.LogEntry) error {
 	if _, err := w.file.Write(data); err != nil {
 		return fmt.Errorf("wal append: write data: %w", err)
 	}
-	return w.file.Sync()
+	if err := w.file.Sync(); err != nil {
+		return err
+	}
+	w.lastAppendTime = time.Now()
+	return nil
+}
+
+// LastAppendTime returns the wall-clock time of the most recent successful Append.
+// Returns the zero time if no entry has been appended yet.
+func (w *WAL) LastAppendTime() time.Time {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.lastAppendTime
 }
 
 // ReadAll reads all entries from the WAL from the beginning of the file.

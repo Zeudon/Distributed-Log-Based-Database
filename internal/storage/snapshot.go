@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
+	"time"
 
 	"github.com/Zeudon/Distributed-Log-Based-Database/proto"
 )
@@ -14,7 +16,9 @@ import (
 // SnapshotManager handles persisting and loading Snapshots.
 // Snapshots are written atomically via a tmp file + rename.
 type SnapshotManager struct {
-	dataDir string
+	dataDir          string
+	mu               sync.Mutex
+	lastSnapshotTime time.Time
 }
 
 // NewSnapshotManager creates a SnapshotManager that stores snapshots in dataDir.
@@ -24,6 +28,8 @@ func NewSnapshotManager(dataDir string) *SnapshotManager {
 
 // Save serialises snap and writes it atomically to <dataDir>/snapshot.bin.
 func (sm *SnapshotManager) Save(snap proto.Snapshot) error {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
 	if err := os.MkdirAll(sm.dataDir, 0o755); err != nil {
 		return fmt.Errorf("snapshot save: mkdir: %w", err)
 	}
@@ -48,7 +54,16 @@ func (sm *SnapshotManager) Save(snap proto.Snapshot) error {
 		"lastIncludedIndex", snap.LastIncludedIndex,
 		"lastIncludedTerm", snap.LastIncludedTerm,
 		"keys", len(snap.Data))
+	sm.lastSnapshotTime = time.Now()
 	return nil
+}
+
+// LastSnapshotTime returns the wall-clock time of the most recent successful Save.
+// Returns the zero time if no snapshot has been saved yet.
+func (sm *SnapshotManager) LastSnapshotTime() time.Time {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	return sm.lastSnapshotTime
 }
 
 // Load reads and decodes the snapshot from <dataDir>/snapshot.bin.

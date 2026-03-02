@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Zeudon/Distributed-Log-Based-Database/config"
+	"github.com/Zeudon/Distributed-Log-Based-Database/internal/httpapi"
 	"github.com/Zeudon/Distributed-Log-Based-Database/internal/raft"
 	"github.com/Zeudon/Distributed-Log-Based-Database/internal/rpc"
 	"github.com/Zeudon/Distributed-Log-Based-Database/internal/storage"
@@ -33,17 +34,21 @@ type Node struct {
 	snapMgr *storage.SnapshotManager
 
 	raftNode *raft.RaftNode
-	rpcSrv  *rpc.Server
-	rpcCli  *rpc.Client
+	rpcSrv   *rpc.Server
+	rpcCli   *rpc.Client
 
 	// pendingOps maps a committed log index → channel that the waiting handler
 	// goroutine blocks on. When the apply loop processes that index it sends nil
 	// (or an error) to the channel.
-	pendingMu   sync.Mutex
-	pendingOps  map[uint64]*pendingOp
+	pendingMu  sync.Mutex
+	pendingOps map[uint64]*pendingOp
 	// doneEntries records indices that were applied before their pendingOp was
 	// registered, allowing waitForCommit to return immediately in that case.
 	doneEntries map[uint64]struct{}
+
+	// lastCommitTime is updated every time a log entry is applied to the MemTable.
+	lastCommitMu   sync.RWMutex
+	lastCommitTime time.Time
 }
 
 // NewNode constructs a Node from configuration. Call Start() to begin.
@@ -99,13 +104,13 @@ func NewNode(cfg config.ClusterConfig) (*Node, error) {
 	raftNode := raft.NewRaftNode(cfg, wal, mem, snapMgr, rpcCli)
 
 	n := &Node{
-		cfg:        cfg,
-		wal:        wal,
-		mem:        mem,
-		snapMgr:    snapMgr,
-		raftNode:   raftNode,
-		rpcSrv:     rpcSrv,
-		rpcCli:     rpcCli,
+		cfg:         cfg,
+		wal:         wal,
+		mem:         mem,
+		snapMgr:     snapMgr,
+		raftNode:    raftNode,
+		rpcSrv:      rpcSrv,
+		rpcCli:      rpcCli,
 		pendingOps:  make(map[uint64]*pendingOp),
 		doneEntries: make(map[uint64]struct{}),
 	}
@@ -119,6 +124,16 @@ func NewNode(cfg config.ClusterConfig) (*Node, error) {
 func (n *Node) Start() error {
 	n.raftNode.Start()
 	go n.runApplyLoop()
+
+	// Start HTTP REST API server alongside the RPC server.
+	httpSrv := httpapi.NewServer(n, n.cfg.HTTPPort)
+	go func() {
+		slog.Info("HTTP API server starting", "port", n.cfg.HTTPPort)
+		if err := httpSrv.Listen(); err != nil {
+			slog.Error("HTTP server stopped", "err", err)
+		}
+	}()
+
 	slog.Info("Node started", "addr", n.cfg.SelfAddress)
 	return n.rpcSrv.Listen()
 }
@@ -254,6 +269,11 @@ func (n *Node) runApplyLoop() {
 			n.mem.Delete(cmd.Key)
 		}
 
+		// Record the time of the latest commit.
+		n.lastCommitMu.Lock()
+		n.lastCommitTime = time.Now()
+		n.lastCommitMu.Unlock()
+
 		// Check snapshot threshold
 		if n.raftNode.IsLeader() {
 			n.raftNode.TriggerSnapshot()
@@ -327,3 +347,115 @@ func errResp(msg string, code proto.ErrorCode, leaderAddr string) proto.ErrorRes
 		LeaderAddr: leaderAddr,
 	}
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Public write helpers (used by httpapi via NodeAccessor)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// SubmitSet submits a CmdSet command to Raft and blocks until it is committed.
+func (n *Node) SubmitSet(key, value string) error {
+	if !n.raftNode.IsLeader() {
+		return fmt.Errorf("not leader")
+	}
+	cmd := proto.Command{Type: proto.CmdSet, Key: key, Value: value}
+	idx, term, isLeader := n.raftNode.Submit(cmd)
+	if !isLeader {
+		return fmt.Errorf("not leader")
+	}
+	return n.waitForCommit(idx, term)
+}
+
+// SubmitDelete submits a CmdDelete command to Raft and blocks until it is committed.
+func (n *Node) SubmitDelete(key string) error {
+	if !n.raftNode.IsLeader() {
+		return fmt.Errorf("not leader")
+	}
+	cmd := proto.Command{Type: proto.CmdDelete, Key: key}
+	idx, term, isLeader := n.raftNode.Submit(cmd)
+	if !isLeader {
+		return fmt.Errorf("not leader")
+	}
+	return n.waitForCommit(idx, term)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NodeAccessor interface implementation (used by httpapi.Server)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// MemGet reads a key directly from the in-memory state (stale-read semantics).
+func (n *Node) MemGet(key string) (string, bool) { return n.mem.Get(key) }
+
+// MemSnapshot returns a deep copy of all key-value pairs in the MemTable.
+func (n *Node) MemSnapshot() map[string]string { return n.mem.Snapshot() }
+
+// MemTableLen returns the number of keys in the MemTable.
+func (n *Node) MemTableLen() int { return n.mem.Len() }
+
+// NodeID returns this node's integer ID.
+func (n *Node) NodeID() int { return n.cfg.NodeID }
+
+// PartitionID returns the partition this node belongs to.
+func (n *Node) PartitionID() int { return n.cfg.PartitionID }
+
+// SelfAddr returns the RPC listen address of this node.
+func (n *Node) SelfAddr() string { return n.cfg.SelfAddress }
+
+// PeerAddresses returns the RPC addresses of other replicas in this partition.
+func (n *Node) PeerAddresses() []string { return n.cfg.PeerAddresses }
+
+// PeerNodeIDs derives the integer node IDs of peer replicas.
+// Convention: nodeID = partitionID * replicaCount + replicaIndex.
+func (n *Node) PeerNodeIDs() []int {
+	base := n.cfg.PartitionID * n.cfg.ReplicaCount
+	var ids []int
+	for i := 0; i < n.cfg.ReplicaCount; i++ {
+		id := base + i
+		if id != n.cfg.NodeID {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+// RaftTerm returns the current Raft term.
+func (n *Node) RaftTerm() uint64 { return n.raftNode.Term() }
+
+// RaftRole returns the current Raft role string.
+func (n *Node) RaftRole() string { return n.raftNode.Role() }
+
+// RaftLeaderID returns the current known Raft leader ID.
+func (n *Node) RaftLeaderID() int { return n.raftNode.LeaderID() }
+
+// RaftLeaderAddr returns the RPC address of the current Raft leader.
+func (n *Node) RaftLeaderAddr() string { return n.raftNode.LeaderAddr() }
+
+// RaftCommitIndex returns the current Raft commit index.
+func (n *Node) RaftCommitIndex() uint64 { return n.raftNode.CommitIndex() }
+
+// RaftLastApplied returns the last applied Raft log index.
+func (n *Node) RaftLastApplied() uint64 { return n.raftNode.LastApplied() }
+
+// RaftLastLogIndex returns the index of the last Raft log entry.
+func (n *Node) RaftLastLogIndex() uint64 { return n.raftNode.LastLogIndexPublic() }
+
+// RaftSnapshotIndex returns the last included index in the latest snapshot.
+func (n *Node) RaftSnapshotIndex() uint64 { return n.raftNode.SnapshotIndex() }
+
+// RaftIsLeader returns true if this node is the current Raft leader.
+func (n *Node) RaftIsLeader() bool { return n.raftNode.IsLeader() }
+
+// LastCommitTime returns the wall-clock time of the most recent log entry applied.
+func (n *Node) LastCommitTime() time.Time {
+	n.lastCommitMu.RLock()
+	defer n.lastCommitMu.RUnlock()
+	return n.lastCommitTime
+}
+
+// LastWALAppendTime returns the wall-clock time of the most recent WAL append.
+func (n *Node) LastWALAppendTime() time.Time { return n.wal.LastAppendTime() }
+
+// LastSnapshotTime returns the wall-clock time of the most recent snapshot save.
+func (n *Node) LastSnapshotTime() time.Time { return n.snapMgr.LastSnapshotTime() }
+
+// SnapshotExists returns true if a snapshot file is present on disk.
+func (n *Node) SnapshotExists() bool { return n.snapMgr.Exists() }
