@@ -22,12 +22,14 @@ services:
       PEERS: "node-p0-r1:7000,node-p0-r2:7000"
       DATA_DIR: "/data"
       RPC_PORT: "7000"
+      HTTP_PORT: "8080"
       SNAPSHOT_THRESHOLD: "1000"
       ELECTION_TIMEOUT_MIN_MS: "150"
       ELECTION_TIMEOUT_MAX_MS: "300"
       HEARTBEAT_INTERVAL_MS: "50"
     ports:
       - "7000:7000"
+      - "8000:8080"
     volumes:
       - node-p0-r0-data:/data
     networks:
@@ -48,12 +50,14 @@ services:
       PEERS: "node-p0-r0:7000,node-p0-r2:7000"
       DATA_DIR: "/data"
       RPC_PORT: "7000"
+      HTTP_PORT: "8080"
       SNAPSHOT_THRESHOLD: "1000"
       ELECTION_TIMEOUT_MIN_MS: "150"
       ELECTION_TIMEOUT_MAX_MS: "300"
       HEARTBEAT_INTERVAL_MS: "50"
     ports:
       - "7001:7000"
+      - "8001:8080"
     volumes:
       - node-p0-r1-data:/data
     networks:
@@ -74,12 +78,14 @@ services:
       PEERS: "node-p0-r0:7000,node-p0-r1:7000"
       DATA_DIR: "/data"
       RPC_PORT: "7000"
+      HTTP_PORT: "8080"
       SNAPSHOT_THRESHOLD: "1000"
       ELECTION_TIMEOUT_MIN_MS: "150"
       ELECTION_TIMEOUT_MAX_MS: "300"
       HEARTBEAT_INTERVAL_MS: "50"
     ports:
       - "7002:7000"
+      - "8002:8080"
     volumes:
       - node-p0-r2-data:/data
     networks:
@@ -102,12 +108,14 @@ services:
       PEERS: "node-p1-r1:7000,node-p1-r2:7000"
       DATA_DIR: "/data"
       RPC_PORT: "7000"
+      HTTP_PORT: "8080"
       SNAPSHOT_THRESHOLD: "1000"
       ELECTION_TIMEOUT_MIN_MS: "150"
       ELECTION_TIMEOUT_MAX_MS: "300"
       HEARTBEAT_INTERVAL_MS: "50"
     ports:
       - "7010:7000"
+      - "8010:8080"
     volumes:
       - node-p1-r0-data:/data
     networks:
@@ -128,12 +136,14 @@ services:
       PEERS: "node-p1-r0:7000,node-p1-r2:7000"
       DATA_DIR: "/data"
       RPC_PORT: "7000"
+      HTTP_PORT: "8080"
       SNAPSHOT_THRESHOLD: "1000"
       ELECTION_TIMEOUT_MIN_MS: "150"
       ELECTION_TIMEOUT_MAX_MS: "300"
       HEARTBEAT_INTERVAL_MS: "50"
     ports:
       - "7011:7000"
+      - "8011:8080"
     volumes:
       - node-p1-r1-data:/data
     networks:
@@ -154,12 +164,14 @@ services:
       PEERS: "node-p1-r0:7000,node-p1-r1:7000"
       DATA_DIR: "/data"
       RPC_PORT: "7000"
+      HTTP_PORT: "8080"
       SNAPSHOT_THRESHOLD: "1000"
       ELECTION_TIMEOUT_MIN_MS: "150"
       ELECTION_TIMEOUT_MAX_MS: "300"
       HEARTBEAT_INTERVAL_MS: "50"
     ports:
       - "7012:7000"
+      - "8012:8080"
     volumes:
       - node-p1-r2-data:/data
     networks:
@@ -182,12 +194,14 @@ services:
       PEERS: "node-p2-r1:7000,node-p2-r2:7000"
       DATA_DIR: "/data"
       RPC_PORT: "7000"
+      HTTP_PORT: "8080"
       SNAPSHOT_THRESHOLD: "1000"
       ELECTION_TIMEOUT_MIN_MS: "150"
       ELECTION_TIMEOUT_MAX_MS: "300"
       HEARTBEAT_INTERVAL_MS: "50"
     ports:
       - "7020:7000"
+      - "8020:8080"
     volumes:
       - node-p2-r0-data:/data
     networks:
@@ -208,12 +222,14 @@ services:
       PEERS: "node-p2-r0:7000,node-p2-r2:7000"
       DATA_DIR: "/data"
       RPC_PORT: "7000"
+      HTTP_PORT: "8080"
       SNAPSHOT_THRESHOLD: "1000"
       ELECTION_TIMEOUT_MIN_MS: "150"
       ELECTION_TIMEOUT_MAX_MS: "300"
       HEARTBEAT_INTERVAL_MS: "50"
     ports:
       - "7021:7000"
+      - "8021:8080"
     volumes:
       - node-p2-r1-data:/data
     networks:
@@ -234,14 +250,41 @@ services:
       PEERS: "node-p2-r0:7000,node-p2-r1:7000"
       DATA_DIR: "/data"
       RPC_PORT: "7000"
+      HTTP_PORT: "8080"
       SNAPSHOT_THRESHOLD: "1000"
       ELECTION_TIMEOUT_MIN_MS: "150"
       ELECTION_TIMEOUT_MAX_MS: "300"
       HEARTBEAT_INTERVAL_MS: "50"
     ports:
       - "7022:7000"
+      - "8022:8080"
     volumes:
       - node-p2-r2-data:/data
+    networks:
+      - db-net
+    restart: on-failure
+
+  # ─── API Gateway ─────────────────────────────────────────────────────────────
+
+  gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        CMD_PATH: ./cmd/gateway
+    container_name: gateway
+    environment:
+      GATEWAY_PORT: "9090"
+      PARTITION_COUNT: "3"
+      PARTITION_0_HTTP_ADDRS: "node-p0-r0:8080,node-p0-r1:8080,node-p0-r2:8080"
+      PARTITION_1_HTTP_ADDRS: "node-p1-r0:8080,node-p1-r1:8080,node-p1-r2:8080"
+      PARTITION_2_HTTP_ADDRS: "node-p2-r0:8080,node-p2-r1:8080,node-p2-r2:8080"
+    ports:
+      - "9090:9090"
+    depends_on:
+      - node-p0-r0
+      - node-p1-r0
+      - node-p2-r0
     networks:
       - db-net
     restart: on-failure

@@ -46,6 +46,9 @@ type ClusterConfig struct {
 
 	// HeartbeatIntervalMs is how often (ms) the Raft leader sends heartbeats.
 	HeartbeatIntervalMs int
+
+	// HTTPPort is the TCP port this node's REST HTTP server listens on.
+	HTTPPort int
 }
 
 // LoadFromEnv reads all configuration values from environment variables.
@@ -65,6 +68,7 @@ func LoadFromEnv() ClusterConfig {
 		ElectionTimeoutMinMs: getEnvIntDefault("ELECTION_TIMEOUT_MIN_MS", 150),
 		ElectionTimeoutMaxMs: getEnvIntDefault("ELECTION_TIMEOUT_MAX_MS", 300),
 		HeartbeatIntervalMs:  getEnvIntDefault("HEARTBEAT_INTERVAL_MS", 50),
+		HTTPPort:             getEnvIntDefault("HTTP_PORT", 8080),
 	}
 	return cfg
 }
